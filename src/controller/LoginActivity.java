@@ -2,6 +2,8 @@ package controller;
 
 import dao.UserDao;
 
+import java.io.File;
+
 
 public class LoginActivity {
     private UserDao mUserDao;
@@ -9,6 +11,6 @@ public class LoginActivity {
 
     public LoginActivity(String userName, String password) {
         mUserDao = new UserDao();
-        userId = mUserDao.query(userName, password);
+        userId = mUserDao.getID(userName, password);
     }
 }
