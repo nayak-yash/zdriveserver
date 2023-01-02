@@ -5,9 +5,9 @@ import models.User;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.sql.Blob;
 
 public class ZDriveServer {
+
     public static void main(String[] args) {
         System.out.println("Waiting for Clients...");
         try {
@@ -76,11 +76,121 @@ public class ZDriveServer {
                     File renewed=new File(dir,name);
                     renewed.mkdir();
                     oos.writeObject(renewed);
+                    oos.flush();
+                }else if(REQUEST_CODE==6){
+                    ObjectInputStream ois =new ObjectInputStream(is);
+                    ObjectOutputStream oos=new ObjectOutputStream(os);
+                    File dir=(File)ois.readObject();
+                    File item=(File)ois.readObject();
+                    if(item.isDirectory()){
+                        File startDir=new File(dir,item.getName());
+                        startDir.mkdir();
+                        copyDirectory(item,startDir, 0);
+                    }
+                    else {
+                        copyFileUsingStream(item, dir, 0);
+                    }
+                    File renewed=new File(dir.getAbsolutePath());
+                    oos.writeObject(renewed);
+                    oos.flush();
+                }else if(REQUEST_CODE==7){
+                    ObjectInputStream ois =new ObjectInputStream(is);
+                    ObjectOutputStream oos=new ObjectOutputStream(os);
+                    File dir=(File)ois.readObject();
+                    File item=(File)ois.readObject();
+                    if(item.isDirectory()){
+                        File startDir=new File(dir,item.getName());
+                        startDir.mkdir();
+                        copyDirectory(item,startDir, 1);       // copystatus = 1 for move and 0 for copy
+                    }
+                    else {
+                        copyFileUsingStream(item, dir, 1);
+                    }
+                    File renewed=new File(dir.getAbsolutePath());
+                    oos.writeObject(renewed);
+                    oos.flush();
+                }
+                else if(REQUEST_CODE==8){
+                    ObjectInputStream ois =new ObjectInputStream(is);
+                    ObjectOutputStream oos=new ObjectOutputStream(os);
+                    File curDir=(File)ois.readObject();
+                    File item=(File)ois.readObject();
+                    if(item.isDirectory()){
+                        deleteDirectory(item);
+                    }
+                    else{
+                        item.delete();
+                    }
+                    File renewed=new File(curDir.getAbsolutePath());
+                    oos.writeObject(renewed);
+                    oos.flush();
+                }else if(REQUEST_CODE==9){
+                    ObjectInputStream ois =new ObjectInputStream(is);
+                    ObjectOutputStream oos=new ObjectOutputStream(os);
+                    File item=(File)ois.readObject();
+                    String newName=dataInputStream.readUTF();
+                    File renamed=new File(item.getParentFile(),newName);
+                    item.renameTo(renamed);
+                    oos.writeObject(renamed);
+                    oos.flush();
                 }
                 dataOutputStream.close();
                 dataInputStream.close();
             }
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void copyDirectory(File item, File dir, int copyStatus) throws IOException{
+        File[] child=item.listFiles();
+        for(File f:child){
+            if(f.isDirectory()){
+                File newDir=new File(dir,f.getName());
+                newDir.mkdir();
+                if(copyStatus == 1){
+                    f.delete();
+                }
+                copyDirectory(f,newDir, copyStatus);
+            }
+            else {
+                copyFileUsingStream(f, dir, copyStatus);
+            }
+        }
+        if(copyStatus == 1){
+            item.delete();
+        }
+    }
+
+
+    private static void deleteDirectory(File item) {
+        File[] child=item.listFiles();
+        for(File f:child){
+            if(f.isDirectory()){
+                deleteDirectory(f);
+            }else {
+                f.delete();
+            }
+        }
+        item.delete();
+    }
+
+    private static void copyFileUsingStream(File source, File dest, int copyStatus) throws IOException {
+        try {
+            dest=new File(dest.getAbsolutePath()+"\\");
+            InputStream is = new FileInputStream(source);
+            OutputStream os = new FileOutputStream(dest+"\\"+source.getName());
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = is.read(buffer)) > 0) {
+                os.write(buffer, 0, length);
+            }
+            is.close();
+            os.close();
+            if(copyStatus == 1){
+                source.delete();
+            }
+        }catch (Exception e){
             e.printStackTrace();
         }
     }
